@@ -1,11 +1,9 @@
 "use client"
-import React from 'react';
-import { Calendar, Check, ChevronLeft, Clock, FileText } from 'lucide-react';
-// import Header from '@/components/Header';
+import React, { useState } from 'react';
+import { Calendar, Check, ChevronLeft, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -13,18 +11,62 @@ import { format } from 'date-fns';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
-import { currentClasses } from '@/components/Dashboard/instructor/data/mockData';
+import axios from 'axios';
+import { toast } from 'sonner';
 
-const CreateAssignmentPage = () => {
-  const [date, setDate] = React.useState<Date>();
+const CreateAssignmentPage = ({allCourses}: any) => {
+  const [date, setDate] = useState<Date>();
+  const [formData, setFormData] = useState({
+    title: '',
+    course: '',
+    type: '',
+    points: '100',
+    description: '',
+    visibility: 'visible',
+    grading: 'points',
+    submissionType: 'online',
+    availability: 'everyone'
+  });
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { id, value } = e.target;
+    setFormData(prev => ({ ...prev, [id]: value }));
+  };
+
+  const handleSelectChange = (value: string, field: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const assignmentData = {
+        ...formData,
+        dueDate: date
+      };
+      const response = await axios.post('/api/assignments/create', {
+        title: assignmentData.title,
+        courseId: assignmentData.course,
+        assignmentType: assignmentData.type,
+        totalPoints: assignmentData.points,
+        description: assignmentData.description,
+        dueDate: assignmentData.dueDate
+      });
+
+      if (response.status === 201) {
+        toast.success('Assignment created successfully');
+      }
+    } catch (error) {
+      console.error('Error creating assignment:', error);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* <Header /> */}
       <main className="container mx-auto px-4 py-8">
         <div className="flex items-center mb-6">
           <Button variant="ghost" size="sm" className="mr-2" asChild>
-            <a href="/assignments">
+            <a href="/dashboard/instructor/assignments">
               <ChevronLeft className="h-4 w-4 mr-1" />
               Back to Assignments
             </a>
@@ -40,22 +82,22 @@ const CreateAssignmentPage = () => {
                 <CardDescription>Enter the information for the new assignment</CardDescription>
               </CardHeader>
               <CardContent>
-                <form className="space-y-6">
+                <form className="space-y-6" onSubmit={handleSubmit}>
                   <div className="grid grid-cols-1 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="title">Assignment Title</Label>
-                      <Input id="title" placeholder="Enter assignment title" />
+                      <Input id="title" placeholder="Enter assignment title" value={formData.title} onChange={handleChange} />
                     </div>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="course">Course</Label>
-                        <Select>
+                        <Select onValueChange={(value) => handleSelectChange(value, 'course')} value={formData.course}>
                           <SelectTrigger>
                             <SelectValue placeholder="Select a course" />
                           </SelectTrigger>
                           <SelectContent>
-                            {currentClasses.map(course => (
+                            {allCourses.map((course:any) => (
                               <SelectItem key={course.id} value={course.id}>
                                 {course.courseCode}: {course.courseName}
                               </SelectItem>
@@ -66,7 +108,7 @@ const CreateAssignmentPage = () => {
                       
                       <div className="space-y-2">
                         <Label htmlFor="type">Assignment Type</Label>
-                        <Select>
+                        <Select onValueChange={(value) => handleSelectChange(value, 'type')} value={formData.type}>
                           <SelectTrigger>
                             <SelectValue placeholder="Select type" />
                           </SelectTrigger>
@@ -80,55 +122,36 @@ const CreateAssignmentPage = () => {
                       </div>
                     </div>
                     
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Due Date</Label>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Button
-                              variant="outline"
-                              className={cn(
-                                "w-full justify-start text-left font-normal",
-                                !date && "text-muted-foreground"
-                              )}
-                            >
-                              <Calendar className="mr-2 h-4 w-4" />
-                              {date ? format(date, "PPP") : <span>Pick a date</span>}
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0" align="start">
-                            <CalendarComponent
-                              mode="single"
-                              selected={date}
-                              onSelect={setDate}
-                              initialFocus
-                              className="p-3 pointer-events-auto"
-                            />
-                          </PopoverContent>
-                        </Popover>
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <Label>Due Time</Label>
-                        <Select>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select time">
-                              <Clock className="mr-2 h-4 w-4" />
-                              11:59 PM
-                            </SelectValue>
-                          </SelectTrigger>
-                          <SelectContent>
-                            {["9:00 AM", "12:00 PM", "3:00 PM", "5:00 PM", "11:59 PM"].map(time => (
-                              <SelectItem key={time} value={time}>{time}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
+                    <div className="space-y-2">
+                      <Label>Due Date</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              "w-full justify-start text-left font-normal",
+                              !date && "text-muted-foreground"
+                            )}
+                          >
+                            <Calendar className="mr-2 h-4 w-4" />
+                            {date ? format(date, "PPP") : <span>Pick a date</span>}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <CalendarComponent
+                            mode="single"
+                            selected={date}
+                            onSelect={setDate}
+                            initialFocus
+                            className="p-3 pointer-events-auto"
+                          />
+                        </PopoverContent>
+                      </Popover>
                     </div>
                     
                     <div className="space-y-2">
                       <Label htmlFor="points">Total Points</Label>
-                      <Input id="points" type="number" placeholder="Enter total points" defaultValue="100" />
+                      <Input id="points" type="number" placeholder="Enter total points" value={formData.points} onChange={handleChange} />
                     </div>
                     
                     <div className="space-y-2">
@@ -137,15 +160,16 @@ const CreateAssignmentPage = () => {
                         id="description" 
                         placeholder="Provide detailed instructions for the assignment"
                         rows={6}
+                        value={formData.description}
+                        onChange={handleChange}
                       />
                     </div>
                   </div>
                   
                   <div className="flex justify-end">
-                    <Button variant="outline" className="mr-2">
-                      Save as Draft
-                    </Button>
-                    <Button type="submit">
+                   
+                    <Button onClick={handleSubmit}
+                     type="submit">
                       <Check className="mr-2 h-4 w-4" />
                       Create Assignment
                     </Button>
@@ -165,7 +189,7 @@ const CreateAssignmentPage = () => {
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="visibility">Visibility</Label>
-                    <Select defaultValue="visible">
+                    <Select onValueChange={(value) => handleSelectChange(value, 'visibility')} value={formData.visibility}>
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
@@ -179,7 +203,7 @@ const CreateAssignmentPage = () => {
                   
                   <div className="space-y-2">
                     <Label htmlFor="grading">Grading Scheme</Label>
-                    <Select defaultValue="points">
+                    <Select onValueChange={(value) => handleSelectChange(value, 'grading')} value={formData.grading}>
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
@@ -194,7 +218,7 @@ const CreateAssignmentPage = () => {
                   
                   <div className="space-y-2">
                     <Label htmlFor="submission-type">Submission Type</Label>
-                    <Select defaultValue="online">
+                    <Select onValueChange={(value) => handleSelectChange(value, 'submissionType')} value={formData.submissionType}>
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
@@ -209,7 +233,7 @@ const CreateAssignmentPage = () => {
                   
                   <div className="space-y-2">
                     <Label htmlFor="availability">Availability</Label>
-                    <Select defaultValue="everyone">
+                    <Select onValueChange={(value) => handleSelectChange(value, 'availability')} value={formData.availability}>
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>

@@ -14,12 +14,14 @@ const page = async () => {
       instructor: true,
       student: true,
       instructedCourses: true,
-      enrolledCourses: true
+      enrolledCourses: true,
     }
   }) 
+
+  const allCourses = await prisma.course.findMany()
   return (
     <>
-      <StudentsPage students={allStudents} />
+      <StudentsPage students={allStudents} Allcourses={allCourses} />
     </>
   )
 }
