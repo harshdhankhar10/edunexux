@@ -1,10 +1,19 @@
 import CreateAssignmentPage from '@/components/Dashboard/instructor/assignments/create/Create'
 import React from 'react'
+import prisma from '@/lib/prisma'
 
-const page = () => {
+const page = async () => {
+  const courseName = await prisma.course.findMany({
+    select : {
+      id:true,
+      courseName: true,
+      courseCode: true,
+    }
+  })
+  
   return (
     <>
-      <CreateAssignmentPage />
+      <CreateAssignmentPage courseName={courseName}/>
     </>
   )
 }
