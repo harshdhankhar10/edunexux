@@ -196,6 +196,7 @@ model Assignment {
   title          String
   assignmentType String
   dueDate        DateTime
+  dueTime        DateTime
   totalPoints    Int
   description    String
   createdAt      DateTime @default(now())
