@@ -2,6 +2,9 @@
 
 import { useState } from "react";
 import { PlusCircle, Bell, Trash2, Calendar } from "lucide-react";
+import axios from "axios";
+import { toast } from "sonner";
+
 
 interface Announcement {
   id: string;
@@ -11,25 +14,9 @@ interface Announcement {
   priority: "High" | "Medium" | "Low";
 }
 
-const initialAnnouncements: Announcement[] = [
-  {
-    id: "1",
-    title: "End of Semester Exam Schedule",
-    content: "Final examinations will begin from December 15th. Please check the detailed schedule posted on the notice board.",
-    date: "2024-03-20",
-    priority: "High"
-  },
-  {
-    id: "2",
-    title: "Parent-Teacher Meeting",
-    content: "Annual parent-teacher meeting is scheduled for next Friday. All parents are requested to attend.",
-    date: "2024-03-18",
-    priority: "Medium"
-  }
-];
 
-export default function AnnouncementPage() {
-  const [announcements, setAnnouncements] = useState<Announcement[]>(initialAnnouncements);
+export default function AnnouncementPage({announcements}: {announcements: Announcement[]}) {
+  const [allAllnnouncements, setAllAnnouncements] = useState<Announcement[]>(announcements);
   const [showForm, setShowForm] = useState(false);
   const [newAnnouncement, setNewAnnouncement] = useState({
     title: "",
@@ -37,21 +24,23 @@ export default function AnnouncementPage() {
     priority: "Medium" as Announcement["priority"]
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async(e: React.FormEvent) => {
     e.preventDefault();
-    const announcement: Announcement = {
-      id: Date.now().toString(),
-      ...newAnnouncement,
-      date: new Date().toISOString().split("T")[0]
-    };
-    setAnnouncements([announcement, ...announcements]);
-    setNewAnnouncement({ title: "", content: "", priority: "Medium" });
-    setShowForm(false);
+    try {
+      const response = await axios.post("/api/communication/announcements", {
+        title: newAnnouncement.title,
+        content: newAnnouncement.content,
+        priority: newAnnouncement.priority
+      });
+      if (response.status === 201) {
+        toast.success("Announcement posted successfully");
+      }
+    } catch (error) {
+      console.error(error);
+    }
+    
   };
 
-  const deleteAnnouncement = (id: string) => {
-    setAnnouncements(announcements.filter(a => a.id !== id));
-  };
 
   const getPriorityColor = (priority: Announcement["priority"]) => {
     switch (priority) {
@@ -163,12 +152,7 @@ export default function AnnouncementPage() {
                     </span>
                   </div>
                 </div>
-                <button
-                  onClick={() => deleteAnnouncement(announcement.id)}
-                  className="text-gray-400 hover:text-red-600 transition-colors"
-                >
-                  <Trash2 className="w-5 h-5" />
-                </button>
+              
               </div>
               <p className="text-gray-700 whitespace-pre-wrap">{announcement.content}</p>
             </div>
