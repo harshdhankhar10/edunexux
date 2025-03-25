@@ -1,6 +1,7 @@
 import CreateAssignmentPage from '@/components/Dashboard/instructor/assignments/create/Create'
 import React from 'react'
 import prisma from '@/lib/prisma'
+<<<<<<< HEAD
 import { getServerSession } from 'next-auth'
 import { NEXT_AUTH } from '@/lib/auth'
 
@@ -22,6 +23,21 @@ const page = async() => {
   return (
     <>
       <CreateAssignmentPage allCourses={courses} />
+=======
+
+const page = async () => {
+  const courseName = await prisma.course.findMany({
+    select : {
+      id:true,
+      courseName: true,
+      courseCode: true,
+    }
+  })
+  
+  return (
+    <>
+      <CreateAssignmentPage courseName={courseName}/>
+>>>>>>> acc09cca01e4cd0473712f8d4d3137a9dd9020cc
     </>
   )
 }
