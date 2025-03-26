@@ -1,6 +1,7 @@
 "use client"
 import React, { useState } from 'react';
 import Link from 'next/link'
+import { useSession } from 'next-auth/react';
 
 import { usePathname } from 'next/navigation';
 import { 
@@ -102,6 +103,9 @@ const Sidebar = ({ isMobile, isSidebarOpen, toggleSidebar }: SidebarProps) => {
   const isActive = (path: string) => {
     return location === path || location.startsWith(`${path}/`);
   };
+
+  const session = useSession();
+  const user = session.data?.user;
 
   return (
     <>
@@ -229,8 +233,8 @@ const Sidebar = ({ isMobile, isSidebarOpen, toggleSidebar }: SidebarProps) => {
               />
             </div>
             <div className="ml-3">
-              <p className="text-sm font-medium text-slate-700">Admin User</p>
-              <p className="text-xs text-slate-500">administrator@school.edu</p>
+              <p className="text-sm font-medium text-slate-700">{user?.firstName} {user?.lastName}</p>
+              <p className="text-xs text-slate-500">{user?.email}</p>
             </div>
           </div>
         )}

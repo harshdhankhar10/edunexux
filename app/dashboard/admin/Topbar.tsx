@@ -1,6 +1,7 @@
 "use client"
 import { useState } from 'react';
 import { Bell, Search, Menu, User, Settings, LogOut, Calendar, MessageSquare } from 'lucide-react';
+import { useSession } from 'next-auth/react';
 import { 
   Popover, 
   PopoverContent, 
@@ -13,6 +14,8 @@ type TopbarProps = {
 };
 
 const Topbar = ({ toggleSidebar }: TopbarProps) => {
+  const session = useSession();
+  const user = session.data?.user;
   const [searchQuery, setSearchQuery] = useState('');
   
   const notifications = [
@@ -105,15 +108,15 @@ const Topbar = ({ toggleSidebar }: TopbarProps) => {
                 />
               </div>
               <div className="hidden md:block text-left">
-                <p className="text-sm font-medium text-slate-700 leading-tight">Admin User</p>
+                <p className="text-sm font-medium text-slate-700 leading-tight">{user?.firstName} {user?.lastName}</p>
                 <p className="text-xs text-slate-500">Administrator</p>
               </div>
             </button>
           </PopoverTrigger>
           <PopoverContent align="end" className="w-56 p-0">
             <div className="p-3 border-b border-slate-100">
-              <p className="text-sm font-medium text-slate-700">Admin User</p>
-              <p className="text-xs text-slate-500">administrator@school.edu</p>
+              <p className="text-sm font-medium text-slate-700">{user?.firstName} {user?.lastName}</p>
+              <p className="text-xs text-slate-500">{user?.email}</p>
             </div>
             <div className="py-1">
               {userMenuItems.map((item, index) => (

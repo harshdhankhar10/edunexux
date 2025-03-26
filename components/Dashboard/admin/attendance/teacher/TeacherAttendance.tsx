@@ -1,12 +1,10 @@
-"use client"
+"use client";
 import React, { useState } from 'react';
-import { useQuery,QueryClient,QueryClientProvider } from '@tanstack/react-query';
+import { useQuery, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { 
   Download, Search, Filter, Calendar as CalendarIcon,
-  Clock, GraduationCap, Check
+  Clock, GraduationCap, Check, UserCheck, UserX
 } from 'lucide-react';
-// import DashboardLayout from '@/components/layout/DashboardLayout';
-import AnalyticsCard from '@/components/Dashboard/admin/dashboard/AnalyticsCard';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -18,7 +16,7 @@ import {
 } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { 
   Select,
   SelectContent,
@@ -26,365 +24,298 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Progress } from '@/components/ui/progress';
+
+interface Instructor {
+  id: string;
+  name: string;
+  employeeId: string;
+  department: string;
+  status: 'PRESENT' | 'ABSENT' | 'LATE';
+  checkInTime: string;
+  checkOutTime: string;
+  course: string;
+}
+
+interface AttendanceStats {
+  totalTeachers: number;
+  presentToday: number;
+  absentToday: number;
+  averageAttendance: number;
+  punctualityRate: number;
+}
+
+interface AttendancePageProps {
+  initialData: {
+    teachers: Instructor[];
+    stats: AttendanceStats;
+  };
+}
 
 const queryClient = new QueryClient();
 
-// Mock data for teacher attendance
-const fetchTeacherAttendanceData = async () => {
-  // In a real application, this would fetch from an API
-  return {
-    teachers: [
-      {
-        id: 1,
-        name: "Dr. Sarah Johnson",
-        employeeId: "EMP001",
-        department: "Computer Science",
-        presentDays: 22,
-        absentDays: 0,
-        attendanceRate: 100,
-        checkInTime: "08:15 AM",
-        checkOutTime: "04:30 PM",
-        status: "present"
-      },
-      {
-        id: 2,
-        name: "Prof. Michael Chen",
-        employeeId: "EMP002",
-        department: "Mathematics",
-        presentDays: 21,
-        absentDays: 1,
-        attendanceRate: 95,
-        checkInTime: "08:05 AM",
-        checkOutTime: "04:45 PM",
-        status: "present"
-      },
-      {
-        id: 3,
-        name: "Dr. Emma Rodriguez",
-        employeeId: "EMP003",
-        department: "Biology",
-        presentDays: 20,
-        absentDays: 2,
-        attendanceRate: 91,
-        checkInTime: "08:30 AM",
-        checkOutTime: "04:15 PM",
-        status: "present"
-      },
-      {
-        id: 4,
-        name: "Prof. James Wilson",
-        employeeId: "EMP004",
-        department: "History",
-        presentDays: 22,
-        absentDays: 0,
-        attendanceRate: 100,
-        checkInTime: "08:20 AM",
-        checkOutTime: "05:00 PM",
-        status: "present"
-      },
-      {
-        id: 5,
-        name: "Dr. Lisa Thompson",
-        employeeId: "EMP005",
-        department: "English",
-        presentDays: 19,
-        absentDays: 3,
-        attendanceRate: 86,
-        checkInTime: "",
-        checkOutTime: "",
-        status: "absent"
-      },
-      {
-        id: 6,
-        name: "Prof. Robert Brown",
-        employeeId: "EMP006",
-        department: "Physics",
-        presentDays: 21,
-        absentDays: 1,
-        attendanceRate: 95,
-        checkInTime: "08:10 AM",
-        checkOutTime: "04:40 PM",
-        status: "present"
-      },
-      {
-        id: 7,
-        name: "Dr. David Clark",
-        employeeId: "EMP007",
-        department: "Chemistry",
-        presentDays: 18,
-        absentDays: 4,
-        attendanceRate: 82,
-        checkInTime: "08:25 AM",
-        checkOutTime: "04:30 PM",
-        status: "present"
-      },
-      {
-        id: 8,
-        name: "Dr. Maria Garcia",
-        employeeId: "EMP008",
-        department: "Psychology",
-        presentDays: 20,
-        absentDays: 2,
-        attendanceRate: 91,
-        checkInTime: "",
-        checkOutTime: "",
-        status: "absent"
-      }
-    ],
-    stats: {
-      totalTeachers: 45,
-      presentToday: 43,
-      absentToday: 2,
-      averageAttendance: 94,
-      punctualityRate: 92
-    }
-  };
-};
-
-const TeacherAttendancePageContent = () => {
+const InstructorAttendanceContent = ({ initialData }: AttendancePageProps) => {
   const [selectedDepartment, setSelectedDepartment] = useState<string>("all");
-  const [selectedStatus, setSelectedStatus] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState<string>("");
   
   const { data, isLoading } = useQuery({
-    queryKey: ['teacherAttendance'],
-    queryFn: fetchTeacherAttendanceData
+    queryKey: ['instructorAttendance'],
+    queryFn: async () => {
+      const response = await fetch('/api/instructor-attendance');
+      if (!response.ok) throw new Error('Failed to fetch attendance data');
+      return response.json();
+    },
+    initialData,
+    refetchOnWindowFocus: false
   });
 
-  const teachers = data?.teachers || [];
-  const stats = data?.stats || {
-    totalTeachers: 0,
-    presentToday: 0,
-    absentToday: 0,
-    averageAttendance: 0,
-    punctualityRate: 0
-  };
+  const { teachers, stats } = data;
 
-  // Filter teachers based on selected department and status
+  // Get unique departments for filter
+  const departments = [...new Set(teachers.map(t => t.department))];
+
+  // Filter instructors based on selections
   const filteredTeachers = teachers.filter(teacher => {
-    const departmentMatch = selectedDepartment === "all" || teacher.department === selectedDepartment;
-    const statusMatch = selectedStatus === "all" || teacher.status === selectedStatus;
-    return departmentMatch && statusMatch;
+    const matchesDepartment = selectedDepartment === "all" || teacher.department === selectedDepartment;
+    const matchesSearch = teacher.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                         teacher.employeeId.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesDepartment && matchesSearch;
   });
-
-  // Extract unique departments for filter
-  const departments = [...new Set(teachers.map(teacher => teacher.department))];
 
   return (
-    <>
-      <div className="p-6 space-y-6 animate-fade-in">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold text-slate-800">Teacher Attendance</h1>
-            <p className="text-slate-500 mt-1">Track faculty attendance and punctuality</p>
-          </div>
-          <div className="flex gap-3">
-            <Button variant="outline" className="flex items-center gap-2">
-              <Download size={16} />
-              Export Report
-            </Button>
-          </div>
+    <div className="space-y-6 p-6">
+      {/* Header Section */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Faculty Attendance</h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            Track and manage instructor attendance records
+          </p>
         </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5">
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center gap-4">
-                <div className="bg-primary-100 p-3 rounded-full">
-                  <GraduationCap className="h-6 w-6 text-primary-600" />
-                </div>
-                <div>
-                  <p className="text-slate-500 text-sm">Total Faculty</p>
-                  <h3 className="text-2xl font-semibold text-slate-800">{stats.totalTeachers}</h3>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center gap-4">
-                <div className="bg-green-100 p-3 rounded-full">
-                  <Check className="h-6 w-6 text-green-600" />
-                </div>
-                <div>
-                  <p className="text-slate-500 text-sm">Present Today</p>
-                  <h3 className="text-2xl font-semibold text-slate-800">{stats.presentToday}</h3>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center gap-4">
-                <div className="bg-red-100 p-3 rounded-full">
-                  <Clock className="h-6 w-6 text-red-600" />
-                </div>
-                <div>
-                  <p className="text-slate-500 text-sm">Absent Today</p>
-                  <h3 className="text-2xl font-semibold text-slate-800">{stats.absentToday}</h3>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center gap-4">
-                <div className="bg-amber-100 p-3 rounded-full">
-                  <CalendarIcon className="h-6 w-6 text-amber-600" />
-                </div>
-                <div>
-                  <p className="text-slate-500 text-sm">Attendance Rate</p>
-                  <h3 className="text-2xl font-semibold text-slate-800">{stats.averageAttendance}%</h3>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center gap-4">
-                <div className="bg-indigo-100 p-3 rounded-full">
-                  <Clock className="h-6 w-6 text-indigo-600" />
-                </div>
-                <div>
-                  <p className="text-slate-500 text-sm">Punctuality</p>
-                  <h3 className="text-2xl font-semibold text-slate-800">{stats.punctualityRate}%</h3>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        <div className="flex gap-3 w-full md:w-auto">
+          <Button variant="outline" className="gap-2">
+            <Download className="h-4 w-4" />
+            Export
+          </Button>
         </div>
-
-        <AnalyticsCard title="Teacher Attendance Records" className="bg-white shadow-sm">
-          <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="relative">
-              <Input
-                placeholder="Search teachers..."
-                className="pl-10 w-full"
-              />
-              <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                <Search className="h-5 w-5 text-slate-400" />
-              </div>
-            </div>
-            
-            <div>
-              <Select value={selectedDepartment} onValueChange={setSelectedDepartment}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select Department" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Departments</SelectItem>
-                  {departments.map(department => (
-                    <SelectItem key={department} value={department}>{department}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div>
-              <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Statuses</SelectItem>
-                  <SelectItem value="present">Present</SelectItem>
-                  <SelectItem value="absent">Absent</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          
-          <div className="overflow-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Employee ID</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Department</TableHead>
-                  <TableHead>Check-In</TableHead>
-                  <TableHead>Check-Out</TableHead>
-                  <TableHead>Present Days</TableHead>
-                  <TableHead>Absent Days</TableHead>
-                  <TableHead>Attendance Rate</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
-                  <TableRow>
-                    <TableCell colSpan={9} className="text-center">
-                      Loading teacher attendance data...
-                    </TableCell>
-                  </TableRow>
-                ) : filteredTeachers.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={9} className="text-center">
-                      No teacher records found
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredTeachers.map(teacher => (
-                    <TableRow key={teacher.id}>
-                      <TableCell>{teacher.employeeId}</TableCell>
-                      <TableCell className="font-medium">{teacher.name}</TableCell>
-                      <TableCell>{teacher.department}</TableCell>
-                      <TableCell>
-                        {teacher.checkInTime || "-"}
-                      </TableCell>
-                      <TableCell>
-                        {teacher.checkOutTime || "-"}
-                      </TableCell>
-                      <TableCell className="text-green-600">{teacher.presentDays}</TableCell>
-                      <TableCell className="text-red-600">{teacher.absentDays}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <div className="w-20 bg-slate-200 rounded-full h-2">
-                            <div
-                              className={`h-2 rounded-full ${
-                                teacher.attendanceRate >= 90
-                                  ? 'bg-green-500'
-                                  : teacher.attendanceRate >= 75
-                                  ? 'bg-amber-500'
-                                  : 'bg-red-500'
-                              }`}
-                              style={{ width: `${teacher.attendanceRate}%` }}
-                            ></div>
-                          </div>
-                          <span>{teacher.attendanceRate}%</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          className={
-                            teacher.status === 'present'
-                              ? 'bg-green-100 text-green-800 hover:bg-green-100'
-                              : 'bg-red-100 text-red-800 hover:bg-red-100'
-                          }
-                        >
-                          {teacher.status === 'present' ? 'Present' : 'Absent'}
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </AnalyticsCard>
       </div>
-    </>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatsCard 
+          title="Total Faculty" 
+          value={stats.totalTeachers} 
+          icon={<GraduationCap className="h-5 w-5" />} 
+          trend="stable"
+        />
+        <StatsCard 
+          title="Present Today" 
+          value={stats.presentToday} 
+          icon={<UserCheck className="h-5 w-5" />} 
+          trend="up"
+          className="bg-green-50 dark:bg-green-900/20"
+          iconClassName="text-green-600 dark:text-green-400"
+        />
+        <StatsCard 
+          title="Absent Today" 
+          value={stats.absentToday} 
+          icon={<UserX className="h-5 w-5" />} 
+          trend="down"
+          className="bg-red-50 dark:bg-red-900/20"
+          iconClassName="text-red-600 dark:text-red-400"
+        />
+        <StatsCard 
+          title="Attendance Rate" 
+          value={`${stats.averageAttendance}%`} 
+          icon={<Check className="h-5 w-5" />} 
+          trend="up"
+          className="bg-blue-50 dark:bg-blue-900/20"
+          iconClassName="text-blue-600 dark:text-blue-400"
+        />
+      </div>
+
+      {/* Filters and Search */}
+      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm p-4 space-y-4">
+        <div className="flex flex-col md:flex-row gap-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Input
+              placeholder="Search by name or ID..."
+              className="pl-10 w-full"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          <Select value={selectedDepartment} onValueChange={setSelectedDepartment}>
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="All Departments" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Departments</SelectItem>
+              {departments.map(dept => (
+                <SelectItem key={dept} value={dept}>{dept}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {/* Attendance Table */}
+      <Card className="overflow-hidden">
+        <CardHeader className="border-b">
+          <CardTitle className="flex items-center gap-2">
+            <CalendarIcon className="h-5 w-5 text-gray-500" />
+            <span>Today's Attendance Records</span>
+            <Badge variant="secondary" className="ml-auto">
+              {filteredTeachers.length} records
+            </Badge>
+          </CardTitle>
+        </CardHeader>
+        <div className="overflow-auto">
+          <Table>
+            <TableHeader className="bg-gray-50 dark:bg-gray-800">
+              <TableRow>
+                <TableHead className="w-[120px]">Employee ID</TableHead>
+                <TableHead>Instructor</TableHead>
+                <TableHead>Department</TableHead>
+                <TableHead>Course</TableHead>
+                <TableHead>Check In</TableHead>
+                <TableHead>Check Out</TableHead>
+                <TableHead className="text-right">Status</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading ? (
+                Array(5).fill(0).map((_, i) => (
+                  <TableRow key={i}>
+                    <TableCell><Skeleton className="h-4 w-[100px]" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-[180px]" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-[120px]" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-[150px]" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-[80px]" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-[80px]" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-[70px] ml-auto" /></TableCell>
+                  </TableRow>
+                ))
+              ) : filteredTeachers.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center h-24">
+                    {teachers.length === 0 ? 
+                      "No attendance records found for today" : 
+                      "No instructors match your filters"}
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredTeachers.map((teacher) => (
+                  <TableRow key={teacher.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                    <TableCell className="font-medium">{teacher.employeeId}</TableCell>
+                    <TableCell>
+                      <div className="font-medium">{teacher.name}</div>
+                      <div className="text-sm text-gray-500 dark:text-gray-400">{teacher.email}</div>
+                    </TableCell>
+                    <TableCell>{teacher.department}</TableCell>
+                    <TableCell>{teacher.course}</TableCell>
+                    <TableCell>
+                      {teacher.checkInTime || (
+                        <span className="text-gray-400">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {teacher.checkOutTime || (
+                        <span className="text-gray-400">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Badge 
+                        variant={
+                          teacher.status === 'PRESENT' ? 'default' :
+                          teacher.status === 'LATE' ? 'warning' : 'destructive'
+                        }
+                        className="capitalize"
+                      >
+                        {teacher.status.toLowerCase()}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </Card>
+    </div>
   );
 };
 
+const StatsCard = ({ 
+  title, 
+  value, 
+  icon, 
+  trend,
+  className = "",
+  iconClassName = "text-primary-600 dark:text-primary-400"
+}: {
+  title: string;
+  value: string | number;
+  icon: React.ReactNode;
+  trend?: 'up' | 'down' | 'stable';
+  className?: string;
+  iconClassName?: string;
+}) => {
+  return (
+    <Card className={className}>
+      <CardContent className="p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">{title}</p>
+            <h3 className="text-2xl font-semibold">{value}</h3>
+          </div>
+          <div className={`rounded-lg p-3 ${iconClassName.replace('text-', 'bg-').replace('dark:text-', 'dark:bg-')} bg-opacity-20`}>
+            {icon}
+          </div>
+        </div>
+        {trend && (
+          <div className={`mt-2 text-sm flex items-center ${
+            trend === 'up' ? 'text-green-600 dark:text-green-400' :
+            trend === 'down' ? 'text-red-600 dark:text-red-400' :
+            'text-gray-600 dark:text-gray-400'
+          }`}>
+            {trend === 'up' ? (
+              <span className="flex items-center">
+                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                </svg>
+                Increased
+              </span>
+            ) : trend === 'down' ? (
+              <span className="flex items-center">
+                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+                Decreased
+              </span>
+            ) : (
+              <span className="flex items-center">
+                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14" />
+                </svg>
+                Stable
+              </span>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
 
-const TeacherAttendancePage = () =>{
+const InstructorAttendancePage = ({ initialData }: AttendancePageProps) => {
   return (
     <QueryClientProvider client={queryClient}>
-      <TeacherAttendancePageContent />
+      <InstructorAttendanceContent initialData={initialData} />
     </QueryClientProvider>
-  )
-}
-export default TeacherAttendancePage;
+  );
+};
+
+export default InstructorAttendancePage;

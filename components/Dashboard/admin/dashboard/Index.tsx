@@ -1,6 +1,6 @@
 "use client"
 import React from 'react';
-// import DashboardLayout from '@/app/dashboard/admin/layout';
+import DashboardLayout from '@/app/dashboard/admin/layout';
 import StatCard from '@/components/Dashboard/admin/dashboard/StatCard';
 import AnalyticsCard from '@/components/Dashboard/admin/dashboard/AnalyticsCard';
 import Chart from '@/components/Dashboard/admin/dashboard/Chart';
@@ -109,7 +109,7 @@ const upcomingEvents = [
   },
 ];
 
-const Index = () => {
+const Index = ({allCourses, allStudents, allTeachers}:any) => {
   return (
     // <DashboardLayout>
       <div className="page-container">
@@ -119,7 +119,7 @@ const Index = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
           <StatCard
             title="Total Students"
-            value="1,245"
+            value={allStudents}
             icon={Users}
             trend={{ value: 5.2, isPositive: true }}
             trendText="vs last month"
@@ -129,7 +129,7 @@ const Index = () => {
           
           <StatCard
             title="Total Teachers"
-            value="86"
+            value={allTeachers}
             icon={GraduationCap}
             trend={{ value: 2.1, isPositive: true }}
             trendText="vs last month"
@@ -139,7 +139,7 @@ const Index = () => {
           
           <StatCard
             title="Total Courses"
-            value="42"
+            value={allCourses}
             icon={BookOpen}
             className="animate-fade-in [animation-delay:200ms]"
             iconColor="bg-amber-100 text-amber-600"
@@ -147,7 +147,7 @@ const Index = () => {
           
           <StatCard
             title="Attendance Rate"
-            value="94%"
+            value="100%"
             icon={Calendar}
             trend={{ value: 1.5, isPositive: false }}
             trendText="vs last month"

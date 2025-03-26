@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { useIsMobile } from '@/hooks/use-mobile';
+
 import Sidebar from '@/app/dashboard/admin/SideBar';
 import Topbar from './Topbar';
 
@@ -9,7 +10,7 @@ type DashboardLayoutProps = {
   children: React.ReactNode;
 };
 
-const DashboardLayout = ({ children }: DashboardLayoutProps) => {
+const DashboardLayout =  ({ children }: DashboardLayoutProps) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const pathname = usePathname();
   const isMobile = useIsMobile();
