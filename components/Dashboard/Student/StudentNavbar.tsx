@@ -71,16 +71,7 @@ const Navbar = ({ userinfo }: { userinfo: UserProps }) => {
           path: "/dashboard/student/learning/classrooms",
           icon: <BookOpen className="h-5 w-5" />,
         },
-        {
-          name: "Materials",
-          path: "/dashboard/student/learning/materials",
-          icon: <FileText className="h-5 w-5" />,
-        },
-        {
-          name: "Assignments",
-          path: "/dashboard/student/learning/assignments",
-          icon: <ClipboardCheck className="h-5 w-5" />,
-        },
+
       ],
     },
     {

@@ -1,47 +1,36 @@
 "use client";
 import React from 'react';
-import { cn } from '@/lib/utils';
-import { LucideIcon } from 'lucide-react';
+import { IconType } from 'react-icons';
 
 interface StatCardProps {
   title: string;
-  value: string | number;
-  icon: LucideIcon;
-  description?: string;
-  trend?: {
-    value: number;
-    isPositive: boolean;
-  };
+  value: number;
+  icon: IconType;
   className?: string;
+  description?: string;
 }
 
-const StatCard = ({ title, value, icon: Icon, description, trend, className }: StatCardProps) => {
+const StatCard = ({ 
+  title, 
+  value, 
+  icon: Icon, 
+  className = '', 
+  description = '' 
+}: StatCardProps) => {
   return (
-    <div className={cn(
-      "bg-white rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-300 border border-slate-100",
-      className
-    )}>
-      <div className="flex items-start justify-between">
+    <div className={`bg-white rounded-xl border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow duration-300 ${className}`}>
+      <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm font-medium text-muted-foreground">{title}</p>
-          <h3 className="mt-2 text-3xl font-bold tracking-tight">{value}</h3>
+          <p className="text-sm font-medium text-gray-500">{title}</p>
+          <h3 className="mt-1 text-2xl font-semibold text-gray-900">
+            {value.toLocaleString()}
+          </h3>
           {description && (
-            <p className="mt-1 text-xs text-muted-foreground">{description}</p>
-          )}
-          {trend && (
-            <div className="mt-2 flex items-center">
-              <span className={cn(
-                "text-xs font-medium",
-                trend.isPositive ? "text-emerald-600" : "text-rose-600"
-              )}>
-                {trend.isPositive ? "+" : "-"}{trend.value}%
-              </span>
-              <span className="ml-2 text-xs text-muted-foreground">from last month</span>
-            </div>
+            <p className="mt-1 text-xs text-gray-500">{description}</p>
           )}
         </div>
-        <div className="rounded-full p-3 bg-slate-100">
-          <Icon className="h-6 w-6 text-blue-500" />
+        <div className="p-3 rounded-lg bg-blue-50 text-blue-500">
+          <Icon className="h-6 w-6" />
         </div>
       </div>
     </div>

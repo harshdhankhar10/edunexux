@@ -1,161 +1,212 @@
 "use client"
-import React, { useState, useEffect } from 'react';
-import { format, addDays, subDays } from 'date-fns';
-import { Calendar, ChevronLeft, ChevronRight, Check, Clock, Ban, FileX, HelpCircle, Download, Printer, RefreshCw, ChevronsUpDown } from 'lucide-react';
-import { toast } from 'sonner';
+import React, { useState, useEffect } from 'react'
+import { format, addDays, subDays, isToday } from 'date-fns'
+import { Calendar, ChevronLeft, ChevronRight, Check, Clock, Ban, FileX, HelpCircle, Download, Printer, RefreshCw, ChevronsUpDown } from 'lucide-react'
+import { toast } from 'sonner'
+import { useRouter } from 'next/navigation'
 
 // Define Types
-type AttendanceStatus = 'present' | 'absent' | 'late' | 'excused' | 'pending';
+type AttendanceStatus = 'PRESENT' | 'ABSENT' | 'LATE' | 'EXCUSED' | 'PENDING'
 
 interface Student {
-  id: string;
-  name: string;
-  avatar?: string;
-  status: AttendanceStatus;
-  note?: string;
+  id: string
+  name: string
+  avatar?: string
+  status: AttendanceStatus
+  note?: string
 }
 
-interface Class {
-  id: string;
-  name: string;
+interface Course {
+  id: string
+  name: string
+  students: Student[]
 }
 
-// All components in one file
-const Attendance = () => {
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [selectedClass, setSelectedClass] = useState<string>('class-1');
-  const [students, setStudents] = useState<Student[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
-  const [isClassSelectorOpen, setIsClassSelectorOpen] = useState(false);
-  
-  // Sample class data
-  const classes: Class[] = [
-    { id: 'class-1', name: 'Mathematics 101' },
-    { id: 'class-2', name: 'Physics 202' },
-    { id: 'class-3', name: 'Computer Science 303' },
-    { id: 'class-4', name: 'Chemistry 404' },
-    { id: 'class-5', name: 'Biology 505' },
-  ];
-  
-  // Sample student data
-  const sampleStudents: Record<string, Student[]> = {
-    'class-1': [
-      { id: 's1', name: 'Alex Johnson', status: 'present', note: 'Participated actively' },
-      { id: 's2', name: 'Maria Garcia', status: 'present', avatar: 'https://i.pravatar.cc/150?img=2' },
-      { id: 's3', name: 'James Smith', status: 'absent', note: 'Called in sick' },
-      { id: 's4', name: 'Sarah Williams', status: 'late', note: 'Arrived 15 minutes late', avatar: 'https://i.pravatar.cc/150?img=13' },
-      { id: 's5', name: 'Daniel Brown', status: 'excused', note: 'Doctor appointment' },
-      { id: 's6', name: 'Sophia Miller', status: 'present', avatar: 'https://i.pravatar.cc/150?img=20' },
-      { id: 's7', name: 'Ethan Davis', status: 'pending' },
-      { id: 's8', name: 'Olivia Martinez', status: 'present', avatar: 'https://i.pravatar.cc/150?img=29' },
-    ],
-    'class-2': [
-      { id: 's10', name: 'Emma Wilson', status: 'present', avatar: 'https://i.pravatar.cc/150?img=5' },
-      { id: 's11', name: 'Noah Thompson', status: 'late', note: 'Bus was delayed' },
-      { id: 's12', name: 'Isabella Anderson', status: 'absent', note: 'Family emergency', avatar: 'https://i.pravatar.cc/150?img=23' },
-      { id: 's13', name: 'Lucas Thomas', status: 'present' },
-    ],
-    'class-3': [
-      { id: 's20', name: 'Charlotte Jackson', status: 'present', avatar: 'https://i.pravatar.cc/150?img=9' },
-      { id: 's21', name: 'Henry White', status: 'excused', note: 'School competition' },
-      { id: 's22', name: 'Amelia Harris', status: 'absent', avatar: 'https://i.pravatar.cc/150?img=18' },
-      { id: 's23', name: 'Benjamin Martin', status: 'present' },
-      { id: 's24', name: 'Mia Thompson', status: 'late', note: 'Traffic jam', avatar: 'https://i.pravatar.cc/150?img=25' },
-    ],
-    'class-4': [
-      { id: 's30', name: 'William Lee', status: 'present' },
-      { id: 's31', name: 'Harper Clark', status: 'present', avatar: 'https://i.pravatar.cc/150?img=10' },
-      { id: 's32', name: 'Evelyn Lewis', status: 'absent', note: 'No call, no show' },
-    ],
-    'class-5': [
-      { id: 's40', name: 'Mason Walker', status: 'present' },
-      { id: 's41', name: 'Abigail Hall', status: 'present', avatar: 'https://i.pravatar.cc/150?img=7' },
-      { id: 's42', name: 'Elijah Allen', status: 'excused', note: 'School event' },
-      { id: 's43', name: 'Ava Young', status: 'late', avatar: 'https://i.pravatar.cc/150?img=15' },
-      { id: 's44', name: 'Liam King', status: 'present' },
-      { id: 's45', name: 'Elizabeth Wright', status: 'pending', avatar: 'https://i.pravatar.cc/150?img=27' },
-    ],
-  };
-  
-  // Load students when class or date changes
+interface AttendanceRecord {
+  id?: string
+  studentId: string
+  courseId: string
+  status: AttendanceStatus
+  note?: string
+}
+
+export default function Attendance({ 
+  courses,
+  todaysAttendance
+}: { 
+  courses: Course[]
+  todaysAttendance: AttendanceRecord[]
+}) {
+  const router = useRouter()
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date())
+  const [selectedCourse, setSelectedCourse] = useState<string>(courses[0]?.id || '')
+  const [students, setStudents] = useState<Student[]>([])
+  const [isLoading, setIsLoading] = useState<boolean>(false)
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false)
+  const [isClassSelectorOpen, setIsClassSelectorOpen] = useState(false)
+  const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>(todaysAttendance)
+
+  // Initialize students based on selected course
   useEffect(() => {
-    const loadStudents = async () => {
-      setIsLoading(true);
-      // Simulate API request
-      setTimeout(() => {
-        setStudents(sampleStudents[selectedClass] || []);
-        setIsLoading(false);
-      }, 800);
-    };
-    
-    loadStudents();
-  }, [selectedClass, selectedDate]);
-  
-  // Handle status change
-  const handleStatusChange = (studentId: string, status: AttendanceStatus) => {
-    setStudents(currentStudents => 
-      currentStudents.map(student => 
-        student.id === studentId ? { ...student, status } : student
+    const currentCourse = courses.find(c => c.id === selectedCourse)
+    if (!currentCourse) return
+
+    const initialStudents = currentCourse.students.map(student => {
+      const existingRecord = attendanceRecords.find(
+        r => r.studentId === student.id && r.courseId === selectedCourse
       )
-    );
-    
-    // Show toast notification
-    toast(`${students.find(s => s.id === studentId)?.name} marked as ${status}`, {
-      description: `Updated on ${format(selectedDate, 'MMMM d, yyyy')}`,
-    });
-  };
-  
+      
+      return {
+        ...student,
+        status: existingRecord?.status || 'PENDING',
+        note: existingRecord?.note || ''
+      }
+    })
+
+    setStudents(initialStudents)
+  }, [selectedCourse, courses, attendanceRecords])
+
+  // Handle status change
+  const handleStatusChange = async (studentId: string, status: AttendanceStatus) => {
+    const updatedStudents = students.map(student => 
+      student.id === studentId ? { ...student, status } : student
+    )
+    setStudents(updatedStudents)
+
+    // Update or create attendance record
+    try {
+      const existingRecord = attendanceRecords.find(
+        r => r.studentId === studentId && r.courseId === selectedCourse
+      )
+
+      const response = await fetch('/api/attendance', {
+        method: existingRecord ? 'PUT' : 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...(existingRecord && { id: existingRecord.id }),
+          studentId,
+          courseId: selectedCourse,
+          date: selectedDate,
+          status,
+          note: students.find(s => s.id === studentId)?.note || ''
+        }),
+      })
+
+      if (!response.ok) throw new Error('Failed to update attendance')
+
+      const result = await response.json()
+      
+      // Update local state
+      setAttendanceRecords(prev => {
+        const existing = prev.filter(r => 
+          !(r.studentId === studentId && r.courseId === selectedCourse)
+        )
+        return [...existing, result]
+      })
+
+      toast.success(`Attendance marked as ${status.toLowerCase()}`, {
+        description: `Updated for ${format(selectedDate, 'MMMM d, yyyy')}`,
+      })
+    } catch (error) {
+      toast.error('Failed to update attendance')
+      console.error(error)
+    }
+  }
+
   // Handle note change
-  const handleNoteChange = (studentId: string, note: string) => {
+  const handleNoteChange = async (studentId: string, note: string) => {
     setStudents(currentStudents => 
       currentStudents.map(student => 
         student.id === studentId ? { ...student, note } : student
       )
-    );
-  };
-  
-  // Handle refresh
-  const handleRefresh = () => {
-    setIsLoading(true);
-    // Simulate API request
-    setTimeout(() => {
-      toast("Attendance data refreshed", {
-        description: `Updated at ${format(new Date(), 'h:mm a')}`,
-      });
-      setIsLoading(false);
-    }, 1000);
-  };
+    )
 
+    // Update attendance record with note
+    try {
+      const existingRecord = attendanceRecords.find(
+        r => r.studentId === studentId && r.courseId === selectedCourse
+      )
+
+      if (existingRecord) {
+        const response = await fetch('/api/attendance', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            ...existingRecord,
+            note
+          }),
+        })
+
+        if (!response.ok) throw new Error('Failed to update note')
+
+        const result = await response.json()
+        setAttendanceRecords(prev => 
+          prev.map(r => r.id === result.id ? result : r)
+        )
+      }
+    } catch (error) {
+      console.error('Failed to update note:', error)
+    }
+  }
+
+  // Handle date change
+  const handleDateChange = async (date: Date) => {
+    setSelectedDate(date)
+    setIsLoading(true)
+    
+    try {
+      const dateStart = new Date(date)
+      dateStart.setHours(0, 0, 0, 0)
+      
+      const dateEnd = new Date(date)
+      dateEnd.setHours(23, 59, 59, 999)
+
+      const response = await fetch(
+        `/api/attendance?courseId=${selectedCourse}&startDate=${dateStart.toISOString()}&endDate=${dateEnd.toISOString()}`
+      )
+      
+      if (!response.ok) throw new Error('Failed to fetch attendance')
+
+      const data = await response.json()
+      setAttendanceRecords(data)
+    } catch (error) {
+      toast.error('Failed to load attendance records')
+      console.error(error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // Handle previous day
   const handlePreviousDay = () => {
-    setSelectedDate(subDays(selectedDate, 1));
-  };
-  
+    const newDate = subDays(selectedDate, 1)
+    setSelectedDate(newDate)
+    handleDateChange(newDate)
+  }
+
+  // Handle next day
   const handleNextDay = () => {
-    setSelectedDate(addDays(selectedDate, 1));
-  };
+    const newDate = addDays(selectedDate, 1)
+    setSelectedDate(newDate)
+    handleDateChange(newDate)
+  }
 
-  const isToday = (date: Date): boolean => {
-    const today = new Date();
-    return (
-      date.getDate() === today.getDate() &&
-      date.getMonth() === today.getMonth() &&
-      date.getFullYear() === today.getFullYear()
-    );
-  };
-
-  // Calculate attendance statistics
-  const totalStudents = students.length;
-  const present = students.filter(s => s.status === 'present').length;
-  const absent = students.filter(s => s.status === 'absent').length;
-  const late = students.filter(s => s.status === 'late').length;
-  const excused = students.filter(s => s.status === 'excused').length;
-  const pending = students.filter(s => s.status === 'pending').length;
+  // Calculate statistics
+  const totalStudents = students.length
+  const present = students.filter(s => s.status === 'PRESENT').length
+  const absent = students.filter(s => s.status === 'ABSENT').length
+  const late = students.filter(s => s.status === 'LATE').length
+  const excused = students.filter(s => s.status === 'EXCUSED').length
+  const pending = students.filter(s => s.status === 'PENDING').length
   
   const attendanceRate = totalStudents > 0 
     ? Math.round(((present + late) / totalStudents) * 100) 
-    : 0;
-  
+    : 0
+
   // StatusBadge component
   const StatusBadge = ({ 
     status, 
@@ -168,37 +219,37 @@ const Attendance = () => {
     size?: 'sm' | 'md' | 'lg';
     className?: string;
   }) => {
-    const baseClasses = "font-medium rounded-full transition-all duration-300 ease-out select-none";
+    const baseClasses = "font-medium rounded-full transition-all duration-300 ease-out select-none"
     
     const sizeClasses = {
       sm: "text-xs px-2 py-0.5",
       md: "text-sm px-3 py-1",
       lg: "text-base px-4 py-1.5"
-    };
+    }
     
     const statusClasses = {
-      present: "bg-green-100 text-green-800 border border-green-200",
-      absent: "bg-red-100 text-red-800 border border-red-200",
-      late: "bg-amber-100 text-amber-800 border border-amber-200",
-      excused: "bg-blue-100 text-blue-800 border border-blue-200",
-      pending: "bg-gray-100 text-gray-800 border border-gray-200"
-    };
+      PRESENT: "bg-green-100 text-green-800 border border-green-200",
+      ABSENT: "bg-red-100 text-red-800 border border-red-200",
+      LATE: "bg-amber-100 text-amber-800 border border-amber-200",
+      EXCUSED: "bg-blue-100 text-blue-800 border border-blue-200",
+      PENDING: "bg-gray-100 text-gray-800 border border-gray-200"
+    }
 
     const hoverClasses = onClick ? {
-      present: "hover:bg-green-200 hover:border-green-300 cursor-pointer",
-      absent: "hover:bg-red-200 hover:border-red-300 cursor-pointer",
-      late: "hover:bg-amber-200 hover:border-amber-300 cursor-pointer",
-      excused: "hover:bg-blue-200 hover:border-blue-300 cursor-pointer",
-      pending: "hover:bg-gray-200 hover:border-gray-300 cursor-pointer"
-    } : {};
+      PRESENT: "hover:bg-green-200 hover:border-green-300 cursor-pointer",
+      ABSENT: "hover:bg-red-200 hover:border-red-300 cursor-pointer",
+      LATE: "hover:bg-amber-200 hover:border-amber-300 cursor-pointer",
+      EXCUSED: "hover:bg-blue-200 hover:border-blue-300 cursor-pointer",
+      PENDING: "hover:bg-gray-200 hover:border-gray-300 cursor-pointer"
+    } : {}
 
     const statusLabels = {
-      present: "Present",
-      absent: "Absent",
-      late: "Late",
-      excused: "Excused",
-      pending: "Pending"
-    };
+      PRESENT: "Present",
+      ABSENT: "Absent",
+      LATE: "Late",
+      EXCUSED: "Excused",
+      PENDING: "Pending"
+    }
 
     const classes = [
       baseClasses,
@@ -206,7 +257,7 @@ const Attendance = () => {
       statusClasses[status],
       hoverClasses[status] || "",
       className
-    ].join(' ');
+    ].join(' ')
 
     return (
       <span 
@@ -215,8 +266,8 @@ const Attendance = () => {
       >
         {statusLabels[status]}
       </span>
-    );
-  };
+    )
+  }
 
   // StudentRow component
   const StudentRow = ({ 
@@ -228,25 +279,25 @@ const Attendance = () => {
     onStatusChange: (studentId: string, status: AttendanceStatus) => void; 
     onNoteChange: (studentId: string, note: string) => void;
   }) => {
-    const [isEditingNote, setIsEditingNote] = useState(false);
-    const [note, setNote] = useState(student.note || '');
+    const [isEditingNote, setIsEditingNote] = useState(false)
+    const [note, setNote] = useState(student.note || '')
     
     const statusIcons = {
-      present: <Check className="h-5 w-5 text-green-600" />,
-      absent: <Ban className="h-5 w-5 text-red-600" />,
-      late: <Clock className="h-5 w-5 text-amber-600" />,
-      excused: <FileX className="h-5 w-5 text-blue-600" />,
-      pending: <HelpCircle className="h-5 w-5 text-gray-400" />
-    };
+      PRESENT: <Check className="h-5 w-5 text-green-600" />,
+      ABSENT: <Ban className="h-5 w-5 text-red-600" />,
+      LATE: <Clock className="h-5 w-5 text-amber-600" />,
+      EXCUSED: <FileX className="h-5 w-5 text-blue-600" />,
+      PENDING: <HelpCircle className="h-5 w-5 text-gray-400" />
+    }
     
     const handleStatusClick = (status: AttendanceStatus) => {
-      onStatusChange(student.id, status);
-    };
+      onStatusChange(student.id, status)
+    }
     
     const handleNoteSubmit = () => {
-      onNoteChange(student.id, note);
-      setIsEditingNote(false);
-    };
+      onNoteChange(student.id, note)
+      setIsEditingNote(false)
+    }
 
     return (
       <tr className="border-b border-gray-200 hover:bg-gray-50 transition-colors duration-200">
@@ -278,7 +329,7 @@ const Attendance = () => {
         
         <td className="py-4 px-4">
           <div className="flex flex-wrap gap-2">
-            {['present', 'absent', 'late', 'excused'].map((status) => (
+            {['PRESENT', 'ABSENT', 'LATE', 'EXCUSED'].map((status) => (
               <StatusBadge 
                 key={status} 
                 status={status as AttendanceStatus}
@@ -322,31 +373,12 @@ const Attendance = () => {
           )}
         </td>
       </tr>
-    );
-  };
-
-  // Action button component
-  const ActionButton = ({ 
-    icon, 
-    label, 
-    onClick 
-  }: { 
-    icon: React.ReactNode; 
-    label: string; 
-    onClick?: () => void;
-  }) => (
-    <button
-      onClick={onClick}
-      className="flex items-center px-3 py-2 text-sm font-medium rounded-lg border border-gray-200 bg-white hover:bg-blue-50 hover:border-blue-300 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-opacity-50"
-    >
-      {icon}
-      <span className="ml-2">{label}</span>
-    </button>
-  );
+    )
+  }
 
   // Class selector
   const ClassSelector = () => {
-    const selectedClassName = classes.find(c => c.id === selectedClass)?.name || 'Select Class';
+    const selectedClassName = courses.find(c => c.id === selectedCourse)?.name || 'Select Class'
 
     return (
       <div className="relative">
@@ -361,21 +393,21 @@ const Attendance = () => {
         {isClassSelectorOpen && (
           <div className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 shadow-lg border border-gray-200 animate-in fade-in">
             <div className="p-1">
-              {classes.map((classItem) => (
+              {courses.map((course) => (
                 <div
-                  key={classItem.id}
+                  key={course.id}
                   className={`relative flex cursor-pointer select-none items-center rounded-md px-3 py-2.5 transition-colors duration-200 ease-out ${
-                    selectedClass === classItem.id 
+                    selectedCourse === course.id 
                       ? "bg-blue-50 text-blue-900" 
                       : "text-gray-900 hover:bg-gray-100"
                   }`}
                   onClick={() => {
-                    setSelectedClass(classItem.id);
-                    setIsClassSelectorOpen(false);
+                    setSelectedCourse(course.id)
+                    setIsClassSelectorOpen(false)
                   }}
                 >
-                  <span className="font-medium">{classItem.name}</span>
-                  {selectedClass === classItem.id && (
+                  <span className="font-medium">{course.name}</span>
+                  {selectedCourse === course.id && (
                     <Check className="ml-auto h-4 w-4 text-blue-600" />
                   )}
                 </div>
@@ -384,8 +416,25 @@ const Attendance = () => {
           </div>
         )}
       </div>
-    );
-  };
+    )
+  }
+
+  if (courses.length === 0) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-semibold mb-4">No Courses Found</h1>
+          <p className="text-gray-600 mb-6">You don't have any courses assigned to mark attendance.</p>
+          <button
+            onClick={() => router.push('/dashboard/instructor/courses')}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            View Courses
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
@@ -433,16 +482,17 @@ const Attendance = () => {
                 <div className="absolute top-full mt-2 right-0 z-10 p-3 bg-white rounded-lg shadow-lg border border-gray-200">
                   <div className="grid grid-cols-7 gap-1">
                     {Array.from({ length: 7 }, (_, i) => {
-                      const date = addDays(new Date(), i - 3);
-                      const isSelected = format(date, 'yyyy-MM-dd') === format(selectedDate, 'yyyy-MM-dd');
-                      const isTdy = isToday(date);
+                      const date = addDays(new Date(), i - 3)
+                      const isSelected = format(date, 'yyyy-MM-dd') === format(selectedDate, 'yyyy-MM-dd')
+                      const isTdy = isToday(date)
                       
                       return (
                         <button
                           key={i}
                           onClick={() => {
-                            setSelectedDate(date);
-                            setIsDatePickerOpen(false);
+                            setSelectedDate(date)
+                            setIsDatePickerOpen(false)
+                            handleDateChange(date)
                           }}
                           className={`flex flex-col items-center justify-center p-2 rounded-lg transition-all duration-200 ${
                             isSelected ? "bg-blue-600 text-white" : isTdy ? "bg-blue-50 text-blue-600" : "hover:bg-gray-100"
@@ -451,7 +501,7 @@ const Attendance = () => {
                           <span className="text-xs font-medium">{format(date, 'EEE')}</span>
                           <span className="text-lg font-semibold">{format(date, 'd')}</span>
                         </button>
-                      );
+                      )
                     })}
                   </div>
                 </div>
@@ -493,33 +543,6 @@ const Attendance = () => {
             <div className="text-sm font-medium text-gray-500">Attendance Rate</div>
             <div className="mt-1 text-2xl font-semibold text-blue-600">{attendanceRate}%</div>
             <div className="mt-1 text-xs text-gray-500">of class present</div>
-          </div>
-        </div>
-        
-        {/* Action Buttons */}
-        <div className="flex flex-wrap justify-between items-center mb-6">
-          <div className="flex flex-wrap gap-3 mb-4 lg:mb-0">
-            <ActionButton 
-              icon={<Download className="h-4 w-4" />} 
-              label="Export CSV" 
-            />
-            <ActionButton 
-              icon={<Printer className="h-4 w-4" />} 
-              label="Print" 
-            />
-            <ActionButton 
-              icon={<RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />} 
-              label={isLoading ? "Refreshing..." : "Refresh"} 
-              onClick={handleRefresh}
-            />
-          </div>
-          
-          <div className="text-sm text-gray-500">
-            {pending > 0 ? (
-              <span className="text-amber-600 font-medium">{pending} students pending attendance</span>
-            ) : (
-              <span className="text-green-600 font-medium">All students marked</span>
-            )}
           </div>
         </div>
         
@@ -577,7 +600,5 @@ const Attendance = () => {
         </div>
       </div>
     </div>
-  );
-};
-
-export default Attendance;
+  )
+}

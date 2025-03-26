@@ -3,8 +3,12 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Bell } from 'lucide-react';
+import { NEXT_AUTH } from '@/lib/auth';
+import { useSession } from 'next-auth/react';
 
 const DashboardHeader = () => {
+  const session = useSession();
+  const user = session?.data?.user;
   // Get current time of day to personalize greeting
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -18,7 +22,7 @@ const DashboardHeader = () => {
       <div className="flex flex-col md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
-            {getGreeting()}, Alex
+            {getGreeting()}, {user?.firstName} {user?.lastName}!
           </h1>
           <p className="mt-1 text-gray-600">
             Here's what's happening with your academic progress today.

@@ -15,6 +15,7 @@ import { toast } from 'sonner'
 import axios from 'axios'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { ChevronDown, ChevronUp } from 'lucide-react'
+import VideoRoom from '@/components/VideoRoom'
 
 interface Course {
   id: string
@@ -106,13 +107,16 @@ interface ManageCourseProps {
 }
 
 const ManageCourse = ({ course, students, assignments, materials, stats, allStudents, syllabus }: ManageCourseProps) => {
-    console.log(syllabus[0].objectives)
   const [activeTab, setActiveTab] = useState('overview')
   const [searchTerm, setSearchTerm] = useState('')
   const [openModel, setOpenModel] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [loading, setLoading] = useState(false)
   const [expandedWeek, setExpandedWeek] = useState<string | null>(null)
+  const [isLive, setIsLive] = useState(false);
+  const [roomID, setRoomID] = useState("");
+  const[isModelOpenForStartClass, setIsModelOpenForStartClass] = useState(false);
+
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -161,6 +165,23 @@ const ManageCourse = ({ course, students, assignments, materials, stats, allStud
     setExpandedWeek(expandedWeek === weekId ? null : weekId)
   }
 
+  const handleStartClass = () => {
+    if (!roomID.trim()) {
+      toast.error("Please enter a room ID");
+      return;
+    }
+    // setIsLive(true);
+    if(typeof window !== 'undefined') {
+    window.location.href = `https://console-api-sig.zegocloud.com/s/uikit/rauyie`;
+    }
+    setIsModelOpenForStartClass(false);
+  };
+
+  const handleEndClass = () => {
+    setIsLive(false);
+    setRoomID("");
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto px-4 py-8">
@@ -175,6 +196,7 @@ const ManageCourse = ({ course, students, assignments, materials, stats, allStud
               Instructor: {course.instructor.name} • {course.instructor.email}
             </p>
           </div>
+
           
           <div className="flex gap-2">
             <Button onClick={handleOpenModelForAddStudents} className="bg-blue-600 hover:bg-blue-700">
@@ -183,11 +205,97 @@ const ManageCourse = ({ course, students, assignments, materials, stats, allStud
             <Button variant="outline" className="border-blue-600 text-blue-600 hover:bg-blue-50">
               <Mail className="mr-2 h-4 w-4" /> Message Class
             </Button>
-            <Button className="bg-blue-600 hover:bg-blue-700">
+            <Button  onClick={ () => setIsModelOpenForStartClass(true)}
+            className="bg-blue-600 hover:bg-blue-700">
               <CircleSlash2 className="mr-2 h-4 w-4" /> Start Class
             </Button>
           </div>
         </div>
+
+        {/* Video Room */}
+        <div className="absolute top-0 right-0 p-4 bg-white rounded-lg shadow-md z-10">
+          {isLive ? (
+            <VideoRoom roomID={roomID} 
+            userID={course.instructor.email} 
+            role="host" />
+          ) : (
+            <div className="flex flex-col md:flex-row gap-4">
+              <Input
+                type="text"
+                placeholder="Enter Room ID"
+                className="flex-1"
+                value={roomID}
+                onChange={(e) => setRoomID(e.target.value)}
+              />
+              <Button onClick={() => setIsModelOpenForStartClass(true)}
+              disabled={isLive}
+             className="bg-blue-600 hover:bg-blue-700">
+                <Plus className="mr-2 h-4 w-4" /> Start Class
+              </Button>
+            </div>
+          )}
+        </div>
+
+        <AnimatePresence>
+          {isModelOpenForStartClass && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+            >
+              <motion.div
+                initial={{ scale: 0.95, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.95, opacity: 0 }}
+                className="bg-white rounded-lg p-6 w-full max-w-md"
+              >
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-xl font-bold">Start Live Class</h2>
+                  <button 
+                    onClick={() => setIsModelOpenForStartClass(false)}
+                    className="text-gray-500 hover:text-gray-700"
+                  >
+                    ✕
+                  </button>
+                </div>
+                
+                <div className="space-y-4">
+                  {/* <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Room ID
+                    </label>
+                    <Input
+                      type="text"
+                      placeholder="Enter unique room ID"
+                      value={roomID}
+                      onChange={(e) => setRoomID(e.target.value)}
+                    />
+                  </div> */}
+                  
+                  <div className="flex justify-end gap-2 pt-2">
+                    <Button 
+                      variant="outline"
+                      onClick={() => setIsModelOpenForStartClass(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button 
+                      onClick={handleStartClass}
+                      className="bg-blue-600 hover:bg-blue-700"
+                    >
+                      Start Class
+                    </Button>
+                  </div>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+
+
 
         {/* Modal for add students */}
         <AnimatePresence>
